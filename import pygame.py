@@ -1,120 +1,106 @@
 import pygame
-import time
 import random
 
-# Initialize pygame
+# Initialize Pygame
 pygame.init()
 
-# Define colors
+# Game Constants
+WIDTH, HEIGHT = 800, 600
 WHITE = (255, 255, 255)
-BLACK = (0, 0, 0)
-RED = (213, 50, 80)
+RED = (255, 0, 0)
 GREEN = (0, 255, 0)
-BLUE = (50, 153, 213)
+BLUE = (0, 0, 255)
+BLACK = (0, 0, 0)
 
-# Screen size
-WIDTH = 600
-HEIGHT = 400
-
-# Snake block size
-BLOCK_SIZE = 10
-SPEED = 15
-
-# Font for messages
-font = pygame.font.SysFont("bahnschrift", 25)
-
-# Initialize screen
+# Set up display
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("Snake Game")
+pygame.display.set_caption("Space Shooter")
 
-# Function to draw the snake
-def draw_snake(block_size, snake_list):
-    for block in snake_list:
-        pygame.draw.rect(screen, GREEN, [block[0], block[1], block_size, block_size])
+# Player Settings
+player_size = 50
+player_x = WIDTH // 2 - player_size // 2
+player_y = HEIGHT - 80
+player_speed = 5
 
-# Function to display message
-def message(msg, color, x, y):
-    text = font.render(msg, True, color)
-    screen.blit(text, [x, y])
+# Bullet Settings
+bullet_width = 5
+bullet_height = 15
+bullet_speed = 7
+bullets = []
 
-def game_loop():
-    game_over = False
-    game_close = False
-    
-    x = WIDTH / 2
-    y = HEIGHT / 2
-    x_change = 0
-    y_change = 0
-    
-    snake_list = []
-    snake_length = 1
-    
-    food_x = round(random.randrange(0, WIDTH - BLOCK_SIZE) / 10.0) * 10.0
-    food_y = round(random.randrange(0, HEIGHT - BLOCK_SIZE) / 10.0) * 10.0
-    
-    clock = pygame.time.Clock()
-    
-    while not game_over:
-        while game_close:
-            screen.fill(BLACK)
-            message("Game Over! Press Q-Quit or C-Play Again", RED, WIDTH / 6, HEIGHT / 3)
-            pygame.display.update()
-            
-            for event in pygame.event.get():
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_q:
-                        game_over = True
-                        game_close = False
-                    if event.key == pygame.K_c:
-                        game_loop()
-        
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                game_over = True
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT:
-                    x_change = -BLOCK_SIZE
-                    y_change = 0
-                elif event.key == pygame.K_RIGHT:
-                    x_change = BLOCK_SIZE
-                    y_change = 0
-                elif event.key == pygame.K_UP:
-                    y_change = -BLOCK_SIZE
-                    x_change = 0
-                elif event.key == pygame.K_DOWN:
-                    y_change = BLOCK_SIZE
-                    x_change = 0
-        
-        if x >= WIDTH or x < 0 or y >= HEIGHT or y < 0:
-            game_close = True
-        
-        x += x_change
-        y += y_change
-        screen.fill(BLACK)
-        pygame.draw.rect(screen, RED, [food_x, food_y, BLOCK_SIZE, BLOCK_SIZE])
-        
-        snake_head = []
-        snake_head.append(x)
-        snake_head.append(y)
-        snake_list.append(snake_head)
-        if len(snake_list) > snake_length:
-            del snake_list[0]
-        
-        for block in snake_list[:-1]:
-            if block == snake_head:
-                game_close = True
-        
-        draw_snake(BLOCK_SIZE, snake_list)
-        pygame.display.update()
-        
-        if x == food_x and y == food_y:
-            food_x = round(random.randrange(0, WIDTH - BLOCK_SIZE) / 10.0) * 10.0
-            food_y = round(random.randrange(0, HEIGHT - BLOCK_SIZE) / 10.0) * 10.0
-            snake_length += 1
-        
-        clock.tick(SPEED)
-    
-    pygame.quit()
-    quit()
+# Enemy Settings
+enemy_size = 50
+enemy_speed = 3
+enemies = []
+enemy_spawn_rate = 30  # Lower is faster spawning
 
-game_loop()
+# Score
+score = 0
+font = pygame.font.Font(None, 36)
+
+# Game Loop Variables
+clock = pygame.time.Clock()
+running = True
+
+while running:
+    screen.fill(BLACK)
+    
+    # Event Handling
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            running = False
+    
+    # Player Movement
+    keys = pygame.key.get_pressed()
+    if keys[pygame.K_LEFT] and player_x > 0:
+        player_x -= player_speed
+    if keys[pygame.K_RIGHT] and player_x < WIDTH - player_size:
+        player_x += player_speed
+    if keys[pygame.K_SPACE]:
+        if len(bullets) < 5:  # Limit number of bullets on screen
+            bullets.append(pygame.Rect(player_x + player_size//2 - bullet_width//2, player_y, bullet_width, bullet_height))
+    
+    # Bullet Movement
+    for bullet in bullets[:]:
+        bullet.y -= bullet_speed
+        if bullet.y < 0:
+            bullets.remove(bullet)
+    
+    # Enemy Spawning
+    if random.randint(1, enemy_spawn_rate) == 1:
+        enemies.append(pygame.Rect(random.randint(0, WIDTH - enemy_size), 0, enemy_size, enemy_size))
+    
+    # Enemy Movement
+    for enemy in enemies[:]:
+        enemy.y += enemy_speed
+        if enemy.y > HEIGHT:
+            enemies.remove(enemy)
+    
+    # Collision Detection
+    for enemy in enemies[:]:
+        for bullet in bullets[:]:
+            if enemy.colliderect(bullet):
+                enemies.remove(enemy)
+                bullets.remove(bullet)
+                score += 10
+                break
+    
+    # Draw Player
+    pygame.draw.rect(screen, BLUE, (player_x, player_y, player_size, player_size))
+    
+    # Draw Bullets
+    for bullet in bullets:
+        pygame.draw.rect(screen, RED, bullet)
+    
+    # Draw Enemies
+    for enemy in enemies:
+        pygame.draw.rect(screen, GREEN, enemy)
+    
+    # Draw Score
+    score_text = font.render(f"Score: {score}", True, WHITE)
+    screen.blit(score_text, (10, 10))
+    
+    pygame.display.flip()
+    clock.tick(30)  # Limit FPS to 30
+
+pygame.quit()
